@@ -9,7 +9,7 @@ const eventNames = [
   'pause',
   'stop',
   'ended',
-  'timeupdate',
+  'timeUpdate',
   'prev',
   'next',
   'error',
@@ -119,7 +119,7 @@ class BackgroundAudioManager {
     this._operate('stop')
   }
   seek (position) {
-    this._operate('play', {
+    this._operate('seek', {
       currentTime: position
     })
   }

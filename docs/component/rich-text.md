@@ -3,9 +3,11 @@
 
 **属性说明**
 
-|属性名|类型|默认值|说明|
-|:-|:-|:-|:-|
-|nodes|Array / String|[]|节点列表 / HTML String|
+|属性名|类型|默认值|说明|平台兼容|
+|:-|:-|:-|:-|:-|
+|nodes|Array / String|[]|节点列表 / HTML String||
+|[space](https://developers.weixin.qq.com/miniprogram/dev/component/rich-text.html)|string||显示连续空格|微信基础库2.4.1+、QQ小程序|
+|selectable|Boolean|false|富文本是否可以长按选中，可用于复制，粘贴等场景|百度APP 11.10+|
 
 **注意**
 
@@ -87,7 +89,7 @@
 |tr||
 |ul|&nbsp;|
 
-**示例**
+**示例** [查看演示](https://uniapp.dcloud.io/h5/pages/component/rich-text/rich-text)
 ```html
 <template>
 	<view class="content">

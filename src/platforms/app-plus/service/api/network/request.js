@@ -17,7 +17,8 @@ export function createRequestTaskById (requestTaskId, {
   data,
   header,
   method = 'GET',
-  responseType
+  responseType,
+  sslVerify = true
 } = {}) {
   const stream = requireNativePlugin('stream')
   const headers = {}
@@ -29,6 +30,16 @@ export function createRequestTaskById (requestTaskId, {
     if (!hasContentType && name.toLowerCase() === 'content-type') {
       hasContentType = true
       headers['Content-Type'] = header[name]
+      // TODO 需要重构
+      if (method !== 'GET' && header[name].indexOf('application/x-www-form-urlencoded') === 0 && typeof data !== 'string' && !(data instanceof ArrayBuffer)) {
+        let bodyArray = []
+        for (let key in data) {
+          if (data.hasOwnProperty(key)) {
+            bodyArray.push(encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
+          }
+        }
+        data = bodyArray.join('&')
+      }
     } else {
       headers[name] = header[name]
     }
@@ -48,7 +59,7 @@ export function createRequestTaskById (requestTaskId, {
         statusCode: 0,
         errMsg: 'timeout'
       })
-    }, timeout)
+    }, (timeout + 200))// TODO +200 发消息到原生层有时间开销，以后考虑由原生层回调超时
   }
   const options = {
     method,
@@ -57,7 +68,9 @@ export function createRequestTaskById (requestTaskId, {
     headers,
     type: responseType === 'arraybuffer' ? 'base64' : 'text',
     // weex 官方文档未说明实际支持 timeout，单位：ms
-    timeout: timeout || 6e5
+    timeout: timeout || 6e5,
+    // 配置和weex模块内相反
+    sslVerify: !sslVerify
   }
   if (method !== 'GET') {
     options.body = data
@@ -89,7 +102,7 @@ export function createRequestTaskById (requestTaskId, {
           requestTaskId,
           state: 'fail',
           statusCode,
-          errMsg: 'abort'
+          errMsg: 'abort statusCode:' + statusCode
         })
       }
     })

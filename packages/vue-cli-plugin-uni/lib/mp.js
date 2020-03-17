@@ -1,17 +1,20 @@
 const path = require('path')
 const webpack = require('webpack')
 
-const moduleAlias = require('module-alias')
-// TODO 重写 vue scoped(若升级 vue 编译器，需要确认该文件路径是否发生变化)
-moduleAlias.addAlias('./stylePlugins/scoped', path.resolve(__dirname, './scoped.js'))
-
 const {
   parseEntry,
   getMainEntry,
   getPlatformExts,
-  getPlatformCompiler,
   getPlatformCssnano
 } = require('@dcloudio/uni-cli-shared')
+
+const WebpackUniAppPlugin = require('../packages/webpack-uni-app-loader/plugin/index')
+
+const modifyVueLoader = require('./vue-loader')
+
+const {
+  createTemplateCacheLoader
+} = require('./cache-loader')
 
 function createUniMPPlugin () {
   if (process.env.UNI_USING_COMPONENTS) {
@@ -24,8 +27,10 @@ function createUniMPPlugin () {
 
 function getProvides () {
   const uniPath = require.resolve('@dcloudio/uni-' + process.env.UNI_PLATFORM)
+  const uniCloudPath = path.resolve(__dirname, '../packages/uni-cloud/dist/index.js')
   const provides = {
-    'uni': [uniPath, 'default']
+    'uni': [uniPath, 'default'],
+    'uniCloud': [uniCloudPath, 'default']
   }
 
   if (process.env.UNI_USING_COMPONENTS) {
@@ -39,6 +44,11 @@ function getProvides () {
     process.env.UNI_USING_V8
   ) {
     provides['__f__'] = [path.resolve(__dirname, 'format-log.js'), 'default']
+
+    const cryptoProvide = [path.resolve(__dirname, 'crypto.js'), 'default']
+    provides['crypto'] = cryptoProvide
+    provides['window.crypto'] = cryptoProvide
+    provides['global.crypto'] = cryptoProvide
   }
 
   // TODO 目前依赖库 megalo 通过判断 wx 对象是否存在来识别平台做不同处理
@@ -56,7 +66,7 @@ module.exports = {
   vueConfig: {
     parallel: false
   },
-  webpackConfig (webpackConfig) {
+  webpackConfig (webpackConfig, vueOptions, api) {
     if (!webpackConfig.optimization) {
       webpackConfig.optimization = {}
     }
@@ -79,14 +89,22 @@ module.exports = {
         } else {
           devtool = 'eval'
         }
+      } else if (
+        process.env.UNI_PLATFORM === 'mp-baidu' ||
+        process.env.UNI_PLATFORM === 'mp-toutiao'
+      ) {
+        devtool = 'inline-source-map'
       } else {
         devtool = 'sourcemap'
       }
     }
+    const statCode = process.env.UNI_USING_STAT ? `import '@dcloudio/uni-stat';` : ''
+
+    const beforeCode = `import 'uni-pages';`
 
     return {
       devtool,
-      mode: process.env.NODE_ENV,
+      mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
       entry () {
         return process.UNI_ENTRY
       },
@@ -95,6 +113,9 @@ module.exports = {
         chunkFilename: '[id].js',
         globalObject: process.env.UNI_PLATFORM === 'mp-alipay' ? 'my' : 'global',
         sourceMapFilename: '../.sourcemap/' + process.env.UNI_PLATFORM + '/[name].js.map'
+      },
+      performance: {
+        hints: false
       },
       resolve: {
         extensions: ['.nvue'],
@@ -107,6 +128,13 @@ module.exports = {
         rules: [{
           test: path.resolve(process.env.UNI_INPUT_DIR, getMainEntry()),
           use: [{
+            loader: 'wrap-loader',
+            options: {
+              before: [
+                beforeCode + statCode
+              ]
+            }
+          }, {
             loader: '@dcloudio/webpack-uni-mp-loader/lib/main'
           }]
         }, {
@@ -118,55 +146,67 @@ module.exports = {
           resourceQuery: /vue&type=template/,
           use: [{
             loader: '@dcloudio/webpack-uni-mp-loader/lib/template'
+          }, {
+            loader: '@dcloudio/vue-cli-plugin-uni/packages/webpack-uni-app-loader/page-meta'
+          }]
+        }, createTemplateCacheLoader(api), {
+          resourceQuery: [
+            /lang=wxs/,
+            /lang=filter/,
+            /lang=sjs/,
+            /blockType=wxs/,
+            /blockType=filter/,
+            /blockType=sjs/
+          ],
+          use: [{
+            loader: require.resolve(
+              '@dcloudio/vue-cli-plugin-uni/packages/webpack-uni-filter-loader')
           }]
         }]
       },
       plugins: [
+        new WebpackUniAppPlugin(),
         createUniMPPlugin(),
         new webpack.ProvidePlugin(getProvides())
       ]
     }
   },
-  chainWebpack (webpackConfig) {
-    // disable vue cache-loader
-    webpackConfig.module
-      .rule('vue')
-      .test([/\.vue$/, /\.nvue$/])
-      .use('vue-loader')
-      .tap(options => Object.assign(options, {
-        compiler: getPlatformCompiler(),
-        compilerOptions: process.env.UNI_USING_COMPONENTS ? {
-          preserveWhitespace: false
-        } : require('./mp-compiler-options'),
-        cacheDirectory: false,
-        cacheIdentifier: false
-      }))
-      .end()
-      .use('uniapp-custom-block-loader')
-      .loader(require.resolve('@dcloudio/vue-cli-plugin-uni/packages/webpack-custom-block-loader'))
-      .options({
-        compiler: getPlatformCompiler()
-      })
-      .end()
-      .use('uniapp-nvue-loader')
-      .loader(require.resolve('@dcloudio/webpack-uni-mp-loader/lib/style.js'))
-      .end()
-      .uses
-      .delete('cache-loader')
+  chainWebpack (webpackConfig, vueOptions, api) {
+    if (process.env.UNI_PLATFORM === 'mp-baidu') {
+      webpackConfig.module
+        .rule('js')
+        .exclude
+        .add(/\.filter\.js$/)
+    }
+
+    const compilerOptions = process.env.UNI_USING_COMPONENTS ? {} : require('./mp-compiler-options')
+
+    modifyVueLoader(webpackConfig, compilerOptions, api)
+
+    const styleExt = getPlatformExts().style
 
     webpackConfig.plugin('extract-css')
       .init((Plugin, args) => new Plugin({
-        filename: '[name]' + getPlatformExts().style
+        filename: '[name]' + styleExt
       }))
 
-    if (process.env.NODE_ENV === 'production') {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.UNI_PLATFORM !== 'app-plus'
+    ) {
+      const OptimizeCssnanoPlugin = require('../packages/@intervolga/optimize-cssnano-plugin/index.js')
       webpackConfig.plugin('optimize-css')
-        .init((Plugin, args) => new Plugin({
+        .init((Plugin, args) => new OptimizeCssnanoPlugin({
           sourceMap: false,
+          filter (assetName) {
+            return path.extname(assetName) === styleExt
+          },
           cssnanoOptions: {
             preset: [
               'default',
-              getPlatformCssnano()
+              Object.assign({}, getPlatformCssnano(), {
+                discardComments: true
+              })
             ]
           }
 

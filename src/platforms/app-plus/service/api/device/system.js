@@ -1,11 +1,12 @@
 import {
   callApiSync,
   isTabBarPage,
-  getLastWebview
+  getLastWebview,
+  getStatusbarHeight,
+  getScreenInfo
 } from '../util'
 
 import {
-  TABBAR_HEIGHT,
   TITLEBAR_HEIGHT
 } from '../../constants'
 
@@ -18,37 +19,66 @@ export function getSystemInfoSync () {
 export function getSystemInfo () {
   const platform = plus.os.name.toLowerCase()
   const ios = platform === 'ios'
-  // 安卓 plus 接口获取的屏幕大小值不为整数，iOS js 获取的屏幕大小横屏时颠倒
-  const screenWidth = plus.screen.resolutionWidth
-  const screenHeight = plus.screen.resolutionHeight
-  // 横屏时 iOS 获取的状态栏高度错误，进行纠正
-  var landscape = Math.abs(plus.navigator.getOrientation()) === 90
-  var statusBarHeight = plus.navigator.getStatusbarHeight()
-  if (ios && landscape) {
-    statusBarHeight = Math.min(20, statusBarHeight)
+  const {
+    screenWidth,
+    screenHeight
+  } = getScreenInfo()
+  const statusBarHeight = getStatusbarHeight()
+
+  let safeAreaInsets
+  const titleNView = {
+    height: 0,
+    cover: false
   }
-  // 判断是否存在 titleNView
-  var titleNView
-  var webview = getLastWebview()
+  const webview = getLastWebview()
   if (webview) {
     let style = webview.getStyle()
-    if (style) {
-      titleNView = style && style.titleNView
-      titleNView = titleNView && titleNView.type === 'default'
+    style = style && style.titleNView
+    if (style && style.type && style.type !== 'none') {
+      titleNView.height = style.type === 'transparent' ? 0 : (statusBarHeight + TITLEBAR_HEIGHT)
+      titleNView.cover = style.type === 'transparent' || style.type === 'float'
     }
+    safeAreaInsets = webview.getSafeAreaInsets()
+  } else {
+    safeAreaInsets = plus.navigator.getSafeAreaInsets()
   }
+  const tabBarView = {
+    height: 0,
+    cover: false
+  }
+  if (isTabBarPage()) {
+    tabBarView.height = tabBar.visible ? tabBar.height : 0
+    tabBarView.cover = tabBar.cover
+  }
+  const windowTop = titleNView.cover ? titleNView.height : 0
+  const windowBottom = tabBarView.cover ? tabBarView.height : 0
+  const windowHeight = screenHeight - titleNView.height - tabBarView.height
+  const windowHeightReal = screenHeight - (titleNView.cover ? 0 : titleNView.height) - (tabBarView.cover ? 0 : tabBarView.height)
+  const windowWidth = screenWidth
+  safeAreaInsets = ios ? safeAreaInsets : {
+    left: 0,
+    right: 0,
+    top: titleNView.height && !titleNView.cover ? 0 : statusBarHeight,
+    bottom: 0
+  }
+  const safeArea = {
+    left: safeAreaInsets.left,
+    right: windowWidth - safeAreaInsets.right,
+    top: safeAreaInsets.top,
+    bottom: windowHeightReal - safeAreaInsets.bottom,
+    width: windowWidth - safeAreaInsets.left - safeAreaInsets.right,
+    height: windowHeightReal - safeAreaInsets.top - safeAreaInsets.bottom
+  }
+
   return {
     errMsg: 'getSystemInfo:ok',
-    brand: '',
+    brand: plus.device.vendor,
     model: plus.device.model,
     pixelRatio: plus.screen.scale,
     screenWidth,
     screenHeight,
-    // 安卓端 webview 宽度有时比屏幕多 1px，相比取最小值
-    // TODO screenWidth,screenHeight
-    windowWidth: screenWidth,
-    windowHeight: Math.min(screenHeight - (titleNView ? (statusBarHeight + TITLEBAR_HEIGHT)
-      : 0) - (isTabBarPage() && tabBar.visible ? TABBAR_HEIGHT : 0), screenHeight),
+    windowWidth,
+    windowHeight,
     statusBarHeight,
     language: plus.os.language,
     system: plus.os.version,
@@ -56,7 +86,14 @@ export function getSystemInfo () {
     fontSizeSetting: '',
     platform,
     SDKVersion: '',
-    windowTop: 0,
-    windowBottom: 0
+    windowTop,
+    windowBottom,
+    safeArea,
+    safeAreaInsets: {
+      top: safeAreaInsets.top,
+      right: safeAreaInsets.right,
+      bottom: safeAreaInsets.bottom,
+      left: safeAreaInsets.left
+    }
   }
 }

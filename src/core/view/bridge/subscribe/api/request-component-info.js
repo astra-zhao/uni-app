@@ -4,6 +4,10 @@ import {
 
 import getWindowOffset from 'uni-platform/helpers/get-window-offset'
 
+import {
+  findElm
+} from './util'
+
 function getRootInfo (fields) {
   const info = {}
   if (fields.id) {
@@ -46,7 +50,7 @@ function getNodeInfo (el, fields) {
       info.left = rect.left
       info.right = rect.right
       info.top = rect.top - top
-      info.bottom = rect.bottom
+      info.bottom = rect.bottom - top
     }
     if (fields.size) {
       info.width = rect.width
@@ -70,20 +74,25 @@ function getNodeInfo (el, fields) {
       info.scrollTop = 0
     }
   }
+  if (fields.context) {
+    if (el.__vue__ && el.__vue__._getContextInfo) {
+      info.context = el.__vue__._getContextInfo()
+    }
+  }
   return info
 }
 
 function getNodesInfo (pageVm, component, selector, single, fields) {
-  /* eslint-disable no-mixed-operators */
-  const $el = component && component.$el || pageVm.$el
+  const $el = findElm(component, pageVm)
+  if (!$el || ($el && $el.nodeType === 8)) { // Comment
+    return single ? null : []
+  }
   if (single) {
-    const node = $el && ($el.matches(selector) ? $el : $el.querySelector(selector))
+    const node = $el.matches(selector) ? $el : $el.querySelector(selector)
     if (node) {
       return getNodeInfo(node, fields)
     }
     return null
-  } else if (!$el) {
-    return []
   } else {
     let infos = []
     const nodeList = $el.querySelectorAll(selector)
@@ -93,7 +102,7 @@ function getNodesInfo (pageVm, component, selector, single, fields) {
       })
     }
     if ($el.matches(selector)) {
-      infos.unshift($el)
+      infos.unshift(getNodeInfo($el, fields))
     }
     return infos
   }
@@ -105,12 +114,13 @@ export function requestComponentInfo ({
 }, pageId) {
   const pages = getCurrentPages() // 跨平台时，View 层也应该实现该方法，举例 App 上，View 层的 getCurrentPages 返回长度为1的当前页面数组
 
-  const pageVm = pages.find(page => page.$page.id === pageId)
+  const page = pages.find(page => page.$page.id === pageId)
 
-  if (!pageVm) {
-    // TODO 是否需要 defer
+  if (!page) {
     throw new Error(`Not Found：Page[${pageId}]`)
   }
+
+  const pageVm = page.$vm
 
   const result = []
   reqs.forEach(function ({

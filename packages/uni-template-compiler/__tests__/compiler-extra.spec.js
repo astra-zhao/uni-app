@@ -194,15 +194,15 @@ describe('mp:compiler-extra', () => {
   it('generate default slot', () => {
     assertCodegen(
       '<component1>text</component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default']}}">text</component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default']}}">text</component1>`
     )
     assertCodegen(
       '<component1>text<text>123213</text></component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default']}}">text<text>123213</text></component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default']}}">text<text>123213</text></component1>`
     )
     assertCodegen(
       '<component1>text<block slot="right"></block></component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default','right']}}">text<view slot="right"></view></component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default','right']}}">text<view slot="right"></view></component1>`
     )
   })
 
@@ -221,21 +221,21 @@ describe('mp:compiler-extra', () => {
 
     assertCodegen(
       '<component1><template slot="f">f</template><template slot="c">c</template>默认</component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default','f','c']}}"><view slot="f">f</view><view slot="c">c</view>默认</component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default','f','c']}}"><view slot="f">f</view><view slot="c">c</view>默认</component1>`
     )
 
     assertCodegen(
       '<component1 v-slot>text</component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default']}}"><view slot="default">text</view></component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default']}}"><view slot="default">text</view></component1>`
     )
 
     assertCodegen(
       '<component1 v-slot:default>text<text>123213</text></component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['default']}}"><view slot="default">text<text>123213</text></view></component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default']}}"><view slot="default">text<text>123213</text></view></component1>`
     )
     assertCodegen(
       '<component1><template v-slot:left><text></text></template><template v-slot:right><text></text></template></component1>',
-      `<component1 vue-id="1" bind:__l="__l" vue-slots="{{['left','right']}}"><view slot="left"><text></text></view><view slot="right"><text></text></view></component1>`
+      `<component1 vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['left','right']}}"><view slot="left"><text></text></view><view slot="right"><text></text></view></component1>`
     )
     assertCodegen(
       `<my-component>
@@ -247,11 +247,15 @@ describe('mp:compiler-extra', () => {
         <p>Here's some contact info</p>
       </template>
     </my-component>`,
-      `<my-component vue-id="1" bind:__l="__l" vue-slots="{{['default','header','footer']}}"><view slot="header"><view class="_h1">Here might be a page title</view></view><view slot="footer"><view class="_p">Here's some contact info</view></view><view class="_p">A paragraph for the main content.</view></my-component>`
+      `<my-component vue-id="551070e6-1" bind:__l="__l" vue-slots="{{['default','header','footer']}}"><view slot="header"><view class="_h1">Here might be a page title</view></view><view slot="footer"><view class="_p">Here's some contact info</view></view><view class="_p">A paragraph for the main content.</view></my-component>`
     )
   })
 
   it('generate events inside v-for', () => {
+    assertCodegen(
+      `<view v-for="item in dataList" :key="item.id" @click="click1(item, 1);click2(item, 2);"/>`,
+      `<block wx:for="{{dataList}}" wx:for-item="item" wx:for-index="__i0__" wx:key="id"><view data-event-opts="{{[['tap',[['click1',['$0',1],[[['dataList','id',item.id]]]],['click2',['$0',2],[[['dataList','id',item.id]]]]]]]}}" bindtap="__e"></view></block>`
+    )
     // TODO vue的数字 item 是从1，小程序是从0，后续考虑抹平差异
     assertCodegen(
       `<view>1<view  v-for="item in items" :key="item"><input v-for="item1 in item" :key="item1" @input="handle" @click="e=>count++"></view></view>`,
@@ -306,6 +310,14 @@ describe('mp:compiler-extra', () => {
     assertCodegen(
       `<view class="input-list" v-for="(item,index) in dataList" :key="item.id"><input v-model.trim="dataList2[index].val" /></view>`,
       `<block wx:for="{{dataList}}" wx:for-item="item" wx:for-index="index" wx:key="id"><view class="input-list"><input data-event-opts="{{[['input',[['__set_model',['$0','val','$event',['trim']],['dataList2.'+index+'']]]],['blur',[['$forceUpdate']]]]}}" value="{{dataList2[index].val}}" bindinput="__e" bindblur="__e"/></view></block>`
+    )
+    assertCodegen(
+      ` <view>
+        <view v-for="item in list[idx]" :key="item.id" class="mid-item-title" @click="m1(item)">
+          <view class="mid-item-icon" @click.stop="m2(item)"></view>
+        </view>
+        </view>`,
+      `<view><block wx:for="{{list[idx]}}" wx:for-item="item" wx:for-index="__i0__" wx:key="id"><view data-event-opts="{{[['tap',[['m1',['$0'],[[['list.'+idx+'','id',item.id]]]]]]]}}" class="mid-item-title" bindtap="__e"><view data-event-opts="{{[['tap',[['m2',['$0'],[[['list.'+idx+'','id',item.id]]]]]]]}}" class="mid-item-icon" catchtap="__e"></view></view></block></view>`
     )
   })
 
@@ -417,41 +429,41 @@ describe('mp:compiler-extra', () => {
   it('generate events with v-on directive on custom component', () => {
     assertCodegen(
       '<my-component @click="handleClick"/>',
-      `<my-component bind:click="__e" vue-id="1" data-event-opts="{{[['^click',[['handleClick']]]]}}" bind:__l="__l"></my-component>`
+      `<my-component bind:click="__e" vue-id="551070e6-1" data-event-opts="{{[['^click',[['handleClick']]]]}}" bind:__l="__l"></my-component>`
     )
     assertCodegen(
       '<my-component @click-left="handleClick"/>',
-      `<my-component bind:clickLeft="__e" vue-id="1" data-event-opts="{{[['^clickLeft',[['handleClick']]]]}}" bind:__l="__l"></my-component>`
+      `<my-component bind:clickLeft="__e" vue-id="551070e6-1" data-event-opts="{{[['^clickLeft',[['handleClick']]]]}}" bind:__l="__l"></my-component>`
     )
   })
 
   it('generate v-model directive on custom component', () => {
     assertCodegen(
       '<my-component v-model="test" @input="handle">1</my-component>',
-      `<my-component bind:input="__e" vue-id="1" value="{{test}}" data-event-opts="{{[['^input',[['__set_model',['','test','$event',[]]],['handle']]]]}}" bind:__l="__l" vue-slots="{{['default']}}">1</my-component>`
+      `<my-component bind:input="__e" vue-id="551070e6-1" value="{{test}}" data-event-opts="{{[['^input',[['__set_model',['','test','$event',[]]],['handle']]]]}}" bind:__l="__l" vue-slots="{{['default']}}">1</my-component>`
     )
     assertCodegen(
       '<my-component v-model="test" @click="handle">2</my-component>',
-      `<my-component bind:click="__e" bind:input="__e" vue-id="1" value="{{test}}" data-event-opts="{{[['^click',[['handle']]],['^input',[['__set_model',['','test','$event',[]]]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">2</my-component>`
+      `<my-component bind:click="__e" bind:input="__e" vue-id="551070e6-1" value="{{test}}" data-event-opts="{{[['^click',[['handle']]],['^input',[['__set_model',['','test','$event',[]]]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">2</my-component>`
     )
     assertCodegen(
       '<my-component v-model="test.a">3</my-component>',
-      `<my-component bind:input="__e" vue-id="1" value="{{test.a}}" data-event-opts="{{[['^input',[['__set_model',['$0','a','$event',[]],['test']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">3</my-component>`
+      `<my-component bind:input="__e" vue-id="551070e6-1" value="{{test.a}}" data-event-opts="{{[['^input',[['__set_model',['$0','a','$event',[]],['test']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">3</my-component>`
     )
     assertCodegen(
       '<my-component v-model="test.a.b">4</my-component>',
-      `<my-component bind:input="__e" vue-id="1" value="{{test.a.b}}" data-event-opts="{{[['^input',[['__set_model',['$0','b','$event',[]],['test.a']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">4</my-component>`
+      `<my-component bind:input="__e" vue-id="551070e6-1" value="{{test.a.b}}" data-event-opts="{{[['^input',[['__set_model',['$0','b','$event',[]],['test.a']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">4</my-component>`
     )
     assertCodegen(
       '<my-component v-model="test[a.b][a.b]">4</my-component>',
-      `<my-component bind:input="__e" vue-id="1" value="{{test[a.b][a.b]}}" data-event-opts="{{[['^input',[['__set_model',['$0','$1','$event',[]],['test.'+a.b+'','a.b']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">4</my-component>`
+      `<my-component bind:input="__e" vue-id="551070e6-1" value="{{test[a.b][a.b]}}" data-event-opts="{{[['^input',[['__set_model',['$0','$1','$event',[]],['test.'+a.b+'','a.b']]]]]}}" bind:__l="__l" vue-slots="{{['default']}}">4</my-component>`
     )
   })
 
   it('generate object property on custom component', () => {
     assertCodegen(
       '<my-component v-model="test" @input="handle" />',
-      `<my-component bind:input="__e" vue-id="1" value="{{test}}" data-event-opts="{{[['^input',[['__set_model',['','test','$event',[]]],['handle']]]]}}" bind:__l="__l"></my-component>`
+      `<my-component bind:input="__e" vue-id="551070e6-1" value="{{test}}" data-event-opts="{{[['^input',[['__set_model',['','test','$event',[]]],['handle']]]]}}" bind:__l="__l"></my-component>`
     )
   })
   it('generate v-text directive', () => {
@@ -478,23 +490,23 @@ describe('mp:compiler-extra', () => {
   it('generate v-bind directive with sync modifier', () => {
     assertCodegen(
       '<text-document :title.sync="aaa"></text-document>',
-      `<text-document vue-id="1" title="{{aaa}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','aaa','$event'],['']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
+      `<text-document vue-id="551070e6-1" title="{{aaa}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','aaa','$event'],['']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
     )
     assertCodegen(
       '<text-document :title.sync="doc.title"></text-document>',
-      `<text-document vue-id="1" title="{{doc.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],['doc']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
+      `<text-document vue-id="551070e6-1" title="{{doc.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],['doc']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
     )
     assertCodegen(
       '<text-document :title.sync="doc.a.title"></text-document>',
-      `<text-document vue-id="1" title="{{doc.a.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],['doc.a']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
+      `<text-document vue-id="551070e6-1" title="{{doc.a.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],['doc.a']]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document>`
     )
     assertCodegen(
       '<text-document v-for="item in items" :title.sync="item.title"></text-document>',
-      `<block wx:for="{{items}}" wx:for-item="item" wx:for-index="__i0__"><text-document vue-id="{{'1-'+__i0__}}" title="{{item.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],[[['items','',__i0__,'']]]]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document></block>`
+      `<block wx:for="{{items}}" wx:for-item="item" wx:for-index="__i0__"><text-document vue-id="{{'551070e6-1-'+__i0__}}" title="{{item.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],[[['items','',__i0__,'']]]]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document></block>`
     )
     assertCodegen(
       '<text-document v-for="item in items" :title.sync="item.meta.title"></text-document>',
-      `<block wx:for="{{items}}" wx:for-item="item" wx:for-index="__i0__"><text-document vue-id="{{'1-'+__i0__}}" title="{{item.meta.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],[[['items','',__i0__,'meta']]]]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document></block>`
+      `<block wx:for="{{items}}" wx:for-item="item" wx:for-index="__i0__"><text-document vue-id="{{'551070e6-1-'+__i0__}}" title="{{item.meta.title}}" data-event-opts="{{[['^updateTitle',[['__set_sync',['$0','title','$event'],[[['items','',__i0__,'meta']]]]]]]}}" bind:updateTitle="__e" bind:__l="__l"></text-document></block>`
     )
   })
 
@@ -581,6 +593,11 @@ describe('mp:compiler-extra', () => {
     )
   })
   it('generate event ', () => {
+    assertCodegen(
+      `<view @/>`,
+      `<view></view>`
+    )
+
     assertCodegen(
       `<text v-for="item in items['metas']" :key="item['id']" class="title" @tap="handle(item['id'],item['title'])">{{item.title}}</text>`,
       `<block wx:for="{{items['metas']}}" wx:for-item="item" wx:for-index="__i0__" wx:key="id"><text data-event-opts="{{[['tap',[['handle',['$0','$1'],[[['items.metas','id',item['id'],'id']],[['items.metas','id',item['id'],'title']]]]]]]}}" class="title" bindtap="__e">{{item.title}}</text></block>`

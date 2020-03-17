@@ -17,6 +17,10 @@ import {
 } from './lifecycle'
 
 import {
+  initPolyfill
+} from './polyfill'
+
+import {
   getTabBarScrollPosition
 } from './app/router-guard'
 
@@ -56,6 +60,8 @@ export default {
   install (Vue, {
     routes
   } = {}) {
+    initPolyfill(Vue)
+
     lifecycleMixin(Vue)
 
     const minId = getMinId(routes)
@@ -70,9 +76,9 @@ export default {
         } else {
           if (
             to &&
-                        from &&
-                        to.meta.isTabBar &&
-                        from.meta.isTabBar
+            from &&
+            to.meta.isTabBar &&
+            from.meta.isTabBar
           ) { // tabbar 跳 tabbar
             const position = getTabBarScrollPosition(to.params.__id__)
             if (position) {
@@ -141,9 +147,15 @@ export default {
           const pageMixin = createPageMixin()
           // mixin page hooks
           Object.keys(pageMixin).forEach(hook => {
-            options[hook] = options[hook] ? [].concat(pageMixin[hook], options[hook]) : [
-              pageMixin[hook]
-            ]
+            if (options.mpOptions) { // 小程序适配出来的 vue 组件（保证先调用小程序适配里的 created，再触发 onLoad）
+              options[hook] = options[hook] ? [].concat(options[hook], pageMixin[hook]) : [
+                pageMixin[hook]
+              ]
+            } else {
+              options[hook] = options[hook] ? [].concat(pageMixin[hook], options[hook]) : [
+                pageMixin[hook]
+              ]
+            }
           })
         } else {
           if (this.$parent && this.$parent.__page__) {

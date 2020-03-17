@@ -14,14 +14,14 @@ const defaultAsync = {
   loading: 'AsyncLoading',
   error: 'AsyncError',
   delay: 200,
-  timeout: 3000
+  timeout: 60000
 }
 
 const networkTimeout = {
-  request: 6000,
-  connectSocket: 6000,
-  uploadFile: 6000,
-  downloadFile: 6000
+  request: 60000,
+  connectSocket: 60000,
+  uploadFile: 60000,
+  downloadFile: 60000
 }
 
 function getManifestJson () {
@@ -59,7 +59,6 @@ function getH5Options (manifestJson) {
   if (base.indexOf('/') !== 0) {
     base = '/' + base
   }
-
   if (base.substr(-1) !== '/') {
     base = base + '/'
   }
